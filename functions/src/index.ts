@@ -16,18 +16,37 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
 
   puppeteer
     .use(StealthPlugin())
-    .launch({ headless: true })
+    .launch({ headless: true, args: ["--start-maximized"] })
     .then(async (browser) => {
       const page = await browser.newPage();
-      await page.goto("https://bot.sannysoft.com");
-      await page.waitForTimeout(5000);
-      const buffer = await page.screenshot({ fullPage: true });
-      uploadImageToStorage(buffer);
+      await page.goto("https://opensea.io/collection/very-long-animals");
+      functions.logger.info("...🚧 waiting for cloudflare to resolve");
+      await page.waitForSelector(".cf-browser-verification", { hidden: true });
+      //   await page.waitForTimeout(5000);
+      const html = await page.content();
+      functions.logger.info("html", html, { structuredData: true });
+      uploadHTMLToStorage(html);
+      //   const buffer = await page.screenshot({ fullPage: true });
+      //   uploadImageToStorage(buffer);
       await browser.close();
     });
 
   response.send("fetchOpensea");
 });
+
+const uploadHTMLToStorage = async (html: string) => {
+  functions.logger.info("uploadHTMLToStorage", { structuredData: true });
+  const bucket = admin.storage().bucket();
+  const fileName = Date.now().toString();
+  const savePath = "puppeteer_capture/" + fileName + ".html";
+  const bucketFile = bucket.file(savePath);
+  await bucketFile.save(html, {
+    metadata: {
+      contentType: "text/html",
+    },
+  });
+  functions.logger.info("saved", { structuredData: true });
+};
 
 const uploadImageToStorage = async (buffer: string | Buffer) => {
   functions.logger.info("uploadImageToStorage", { structuredData: true });
