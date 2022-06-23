@@ -36,6 +36,19 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
           structuredData: true,
         });
 
+        const imgTag = await assetAnchor.$("img");
+        functions.logger.info("imgTag", imgTag);
+        if (imgTag != null) {
+          const imageUrl = (await (
+            await imgTag.getProperty("src")
+          ).jsonValue()) as string;
+          const assetName = (await (
+            await imgTag.getProperty("alt")
+          ).jsonValue()) as string;
+          functions.logger.info("imageUrl", imageUrl);
+          functions.logger.info("assetName", assetName);
+        }
+
         const _assetInfo = assetInfo(assetPageUrl);
         functions.logger.info("_assetInfo", _assetInfo, {
           structuredData: true,
