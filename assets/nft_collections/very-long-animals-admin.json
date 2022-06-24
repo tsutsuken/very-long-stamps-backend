@@ -1,0 +1,14 @@
+[
+  {
+    "collection_slug": "very-long-animals-admin",
+    "image_url": "https://firebasestorage.googleapis.com/v0/b/very-long-stamps-prod.appspot.com/o/assets%2Fvery-long-animals-admin%2Fpotato_stick.jpeg?alt=media&token=566eb541-b407-4ac3-9903-6633b3485401",
+    "name": "VeryLongAnimalsPotato",
+    "order": 0
+  },
+  {
+    "collection_slug": "very-long-animals-admin",
+    "image_url": "https://firebasestorage.googleapis.com/v0/b/very-long-stamps-prod.appspot.com/o/assets%2Fvery-long-animals-admin%2Fpotato_case.jpeg?alt=media&token=137fbc23-8fe7-4caa-a304-4ebdc75d577c",
+    "name": "VeryLongAnimalsPotato",
+    "order": 1
+  }
+]
