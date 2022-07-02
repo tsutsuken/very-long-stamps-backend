@@ -9,7 +9,22 @@ import puppeteer from "puppeteer-extra";
 
 // Add stealth plugin and use defaults (all tricks to hide puppeteer usage)
 import StealthPlugin = require("puppeteer-extra-plugin-stealth");
+import { ElementHandle } from "puppeteer";
 // puppeteer.use(StealthPlugin());
+
+interface Asset {
+  imageUrl: string;
+  assetName: string;
+  assetId: string;
+  contractAddress: string;
+  chain: string;
+}
+
+interface AssetPageUrlElements {
+  assetId: string;
+  contractAddress: string;
+  chain: string;
+}
 
 export const fetchOpensea = functions.https.onRequest((request, response) => {
   functions.logger.info("fetchOpensea", { structuredData: true });
@@ -28,47 +43,62 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
       uploadHTMLToStorage(html);
 
       const assetAnchors = await page.$$(".Asset--anchor");
-      for (const assetAnchor of assetAnchors) {
-        const assetPageUrl = (await (
-          await assetAnchor.getProperty("href")
-        ).jsonValue()) as string;
-        functions.logger.info("assetPageUrl", assetPageUrl, {
-          structuredData: true,
-        });
+      const _parsedAssets = await parsedAssets(assetAnchors);
+      functions.logger.info("assets", _parsedAssets, { structuredData: true });
 
-        const imgTag = await assetAnchor.$("img");
-        functions.logger.info("imgTag", imgTag);
-        if (imgTag != null) {
-          const imageUrl = (await (
-            await imgTag.getProperty("src")
-          ).jsonValue()) as string;
-          const assetName = (await (
-            await imgTag.getProperty("alt")
-          ).jsonValue()) as string;
-          functions.logger.info("imageUrl", imageUrl);
-          functions.logger.info("assetName", assetName);
-        }
+      // functions.logger.info("take screenshot and upload imag");
+      // const buffer = await page.screenshot({ fullPage: false });
+      // uploadImageToStorage(buffer);
 
-        const _assetInfo = assetInfo(assetPageUrl);
-        functions.logger.info("_assetInfo", _assetInfo, {
-          structuredData: true,
-        });
-      }
-      //   const buffer = await page.screenshot({ fullPage: true });
-      //   uploadImageToStorage(buffer);
       await browser.close();
     });
 
   response.send("fetchOpensea");
 });
 
-interface AssetInfo {
-  assetId: string;
-  contractAddress: string;
-  chain: string;
-}
+const parsedAssets = async (
+  assetAnchors: ElementHandle<Element>[]
+): Promise<Set<Asset>> => {
+  const assets = new Set<Asset>();
 
-const assetInfo = (assetPageUrl: string): AssetInfo | null => {
+  for (const assetAnchor of assetAnchors) {
+    const imgTag = await assetAnchor.$("img");
+    let imageUrl = "";
+    let assetName = "";
+    functions.logger.info("imgTag", imgTag);
+    if (imgTag != null) {
+      imageUrl = (await (
+        await imgTag.getProperty("src")
+      ).jsonValue()) as string;
+      assetName = (await (
+        await imgTag.getProperty("alt")
+      ).jsonValue()) as string;
+    }
+
+    const assetPageUrl = (await (
+      await assetAnchor.getProperty("href")
+    ).jsonValue()) as string;
+    const _assetPageUrlElements = assetPageUrlElements(assetPageUrl);
+    if (_assetPageUrlElements == null) {
+      functions.logger.info("null _assetPageUrlElements");
+    } else {
+      const asset: Asset = {
+        assetName: assetName,
+        imageUrl: imageUrl,
+        assetId: _assetPageUrlElements.assetId,
+        contractAddress: _assetPageUrlElements.contractAddress,
+        chain: _assetPageUrlElements.chain,
+      };
+      assets.add(asset);
+    }
+  }
+
+  return assets;
+};
+
+const assetPageUrlElements = (
+  assetPageUrl: string
+): AssetPageUrlElements | null => {
   // assetPageUrl example: https://opensea.io/assets/matic/0xc52d9642260830055c986a97794b7b27393edf5e/16
   const elements = assetPageUrl.split("/");
   if (elements.length <= 3) {
@@ -76,7 +106,7 @@ const assetInfo = (assetPageUrl: string): AssetInfo | null => {
   }
 
   const lastIndex = elements.length - 1;
-  const assetInfo: AssetInfo = {
+  const assetInfo: AssetPageUrlElements = {
     assetId: elements[lastIndex],
     contractAddress: elements[lastIndex - 1],
     chain: elements[lastIndex - 2],
