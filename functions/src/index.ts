@@ -38,9 +38,9 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
       functions.logger.info("...🚧 waiting for cloudflare to resolve");
       await page.waitForSelector(".cf-browser-verification", { hidden: true });
       //   await page.waitForTimeout(5000);
-      const html = await page.content();
-      functions.logger.info("html", html, { structuredData: true });
-      uploadHTMLToStorage(html);
+      // const html = await page.content();
+      // functions.logger.info("html", html, { structuredData: true });
+      // uploadHTMLToStorage(html);
 
       const assetAnchors = await page.$$(".Asset--anchor");
       const _parsedAssets = await parsedAssets(assetAnchors);
@@ -115,19 +115,19 @@ const assetPageUrlElements = (
   return assetInfo;
 };
 
-const uploadHTMLToStorage = async (html: string) => {
-  functions.logger.info("uploadHTMLToStorage", { structuredData: true });
-  const bucket = admin.storage().bucket();
-  const fileName = Date.now().toString();
-  const savePath = "puppeteer_capture/" + fileName + ".html";
-  const bucketFile = bucket.file(savePath);
-  await bucketFile.save(html, {
-    metadata: {
-      contentType: "text/html",
-    },
-  });
-  functions.logger.info("saved", { structuredData: true });
-};
+// const uploadHTMLToStorage = async (html: string) => {
+//   functions.logger.info("uploadHTMLToStorage", { structuredData: true });
+//   const bucket = admin.storage().bucket();
+//   const fileName = Date.now().toString();
+//   const savePath = "puppeteer_capture/" + fileName + ".html";
+//   const bucketFile = bucket.file(savePath);
+//   await bucketFile.save(html, {
+//     metadata: {
+//       contentType: "text/html",
+//     },
+//   });
+//   functions.logger.info("saved", { structuredData: true });
+// };
 
 // const uploadImageToStorage = async (buffer: string | Buffer) => {
 //   functions.logger.info("uploadImageToStorage", { structuredData: true });
