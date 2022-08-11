@@ -46,6 +46,10 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
       const _parsedAssets = await parsedAssets(assetAnchors);
       functions.logger.info("assets", _parsedAssets, { structuredData: true });
 
+      const assetJson = JSON.stringify(Array.from(_parsedAssets));
+      functions.logger.info("assetJson", assetJson, { structuredData: true });
+      uploadJsonToStorage(assetJson);
+
       // functions.logger.info("take screenshot and upload imag");
       // const buffer = await page.screenshot({ fullPage: false });
       // uploadImageToStorage(buffer);
@@ -113,6 +117,20 @@ const assetPageUrlElements = (
   };
 
   return assetInfo;
+};
+
+const uploadJsonToStorage = async (json: string) => {
+  functions.logger.info("uploadJsonToStorage", { structuredData: true });
+  const bucket = admin.storage().bucket();
+  const fileName = Date.now().toString();
+  const savePath = "collections_json/" + fileName + ".json";
+  const bucketFile = bucket.file(savePath);
+  await bucketFile.save(json, {
+    metadata: {
+      contentType: "text/json",
+    },
+  });
+  functions.logger.info("saved", { structuredData: true });
 };
 
 // const uploadHTMLToStorage = async (html: string) => {
