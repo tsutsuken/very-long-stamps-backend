@@ -26,15 +26,22 @@ interface AssetPageUrlElements {
   chain: string;
 }
 
+interface AssetsOfCollection {
+  [assetId: string]: Asset;
+}
+
 export const fetchOpensea = functions.https.onRequest((request, response) => {
   functions.logger.info("fetchOpensea", { structuredData: true });
 
+  const isHeadless = true;
   puppeteer
     .use(StealthPlugin())
-    .launch({ headless: true, args: ["--start-maximized"] })
+    .launch({ headless: isHeadless, args: ["--start-maximized"] })
     .then(async (browser) => {
       const page = await browser.newPage();
       await page.goto("https://opensea.io/collection/very-long-animals");
+
+      // ...🚧 waiting for cloudflare to resolve
       functions.logger.info("...🚧 waiting for cloudflare to resolve");
       await page.waitForSelector(".cf-browser-verification", { hidden: true });
       //   await page.waitForTimeout(5000);
@@ -42,11 +49,36 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
       // functions.logger.info("html", html, { structuredData: true });
       // uploadHTMLToStorage(html);
 
-      const assetAnchors = await page.$$(".Asset--anchor");
-      const _parsedAssets = await parsedAssets(assetAnchors);
-      functions.logger.info("assets", _parsedAssets, { structuredData: true });
+      // Scroll and parse
+      let assetsOfCollection: AssetsOfCollection = {};
+      let shouldContinueScroll = true;
+      let times = 0;
+      while (shouldContinueScroll) {
+        const assetAnchors = await page.$$(".Asset--anchor");
+        const _parsedAssets = await parsedAssets(assetAnchors);
+        const mergedAssets = Object.assign(assetsOfCollection, _parsedAssets);
+        assetsOfCollection = mergedAssets;
 
-      const assetJson = JSON.stringify(Array.from(_parsedAssets));
+        await page.evaluate(() => window.scrollBy(0, 600)); // 3000
+        await page.waitForTimeout(1000);
+
+        times++;
+        if (times >= 50) {
+          shouldContinueScroll = false; // Update your condition-to-stop value
+        }
+      }
+      functions.logger.info(
+        "assetsOfCollectionCount",
+        Object.keys(assetsOfCollection).length,
+        { structuredData: true }
+      );
+
+      // assetsデータ(json)をストレージにアップロード
+      const assets = Object.values(assetsOfCollection);
+      functions.logger.info("assetsCount", assets.length, {
+        structuredData: true,
+      });
+      const assetJson = JSON.stringify(assets);
       functions.logger.info("assetJson", assetJson, { structuredData: true });
       uploadJsonToStorage(assetJson);
 
@@ -62,14 +94,13 @@ export const fetchOpensea = functions.https.onRequest((request, response) => {
 
 const parsedAssets = async (
   assetAnchors: ElementHandle<Element>[]
-): Promise<Set<Asset>> => {
-  const assets = new Set<Asset>();
+): Promise<AssetsOfCollection> => {
+  const assetsOfCollection: AssetsOfCollection = {};
 
   for (const assetAnchor of assetAnchors) {
     const imgTag = await assetAnchor.$("img");
     let imageUrl = "";
     let assetName = "";
-    functions.logger.info("imgTag", imgTag);
     if (imgTag != null) {
       imageUrl = (await (
         await imgTag.getProperty("src")
@@ -93,11 +124,11 @@ const parsedAssets = async (
         contractAddress: _assetPageUrlElements.contractAddress,
         chain: _assetPageUrlElements.chain,
       };
-      assets.add(asset);
+      assetsOfCollection[_assetPageUrlElements.assetId] = asset;
     }
   }
 
-  return assets;
+  return assetsOfCollection;
 };
 
 const assetPageUrlElements = (
